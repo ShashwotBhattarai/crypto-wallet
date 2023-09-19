@@ -2,11 +2,10 @@ const CronJob = require("cron/lib/cron").CronJob;
 const axios = require("axios");
 const CurrentWallet = require("../database/schemas/current_wallet.schema");
 const ArchiveWallet = require("../database/schemas/archive-wallet.schema");
-require('dotenv').config();
-
+require("dotenv").config();
 
 const job = new CronJob("0 */5 * * * *", async function () {
-  let apikey = process.env.croneAPIKey ;
+  let apikey = process.env.croneAPIKey;
 
   let currentWalletIds = await CurrentWallet.find({}, "w_id");
   let addressString = "";
@@ -21,10 +20,9 @@ const job = new CronJob("0 */5 * * * *", async function () {
     const response = await axios.get(url);
     const filteredResponse = response.data.result;
     console.log(filteredResponse);
-    let result = transferBalance();
-    if (result) {
-      updateCurrentWallet(filteredResponse);
-    }
+    // transferBalance();
+    appendToArchive();
+    updateCurrentWallet(filteredResponse);
   } catch (err) {
     console.log("err");
     throw err;
@@ -81,9 +79,30 @@ async function updateCurrentWallet(filteredResponse) {
       }
     }
 
-    console.log("Update current wallet successfully");
+    console.log("Updated current wallet successfully");
   } catch (error) {
     console.error("Error:", error);
+  }
+}
+
+async function appendToArchive() {
+  try {
+    const currentWalletDocuments = await CurrentWallet.find().exec();
+
+    const newArchiveDocuments = currentWalletDocuments.map((doc) => ({
+      w_id: doc.w_id,
+      balance: doc.balance,
+    }));
+
+    const insertedDocuments = await ArchiveWallet.insertMany(
+      newArchiveDocuments
+    );
+
+    console.log(
+      `Appended ${insertedDocuments.length} documents to ArchiveWallet.`
+    );
+  } catch (error) {
+    console.error("Error appending documents:", error);
   }
 }
 
